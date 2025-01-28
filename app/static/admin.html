@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ENV Cloud manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+<div class="container mt-5">
+    <h1 class="text-center">Env Cloud manager</h1>
+
+    <div class="alert alert-danger mt-4" role="alert">
+       Важно! Если вы измените token (на backend), переменные перестанут быть доступными, поскольку они зашифрованы
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <!-- Добавить переменную форму -->
+            <div class="card my-4" id="add-variable-form-container">
+                <div class="card-header">
+                    <h5>Добавить новую переменную</h5>
+                </div>
+                <div class="card-body">
+                    <form id="add-variable-form" autocomplete="off">
+                        <div class="mb-3">
+                            <label for="key" class="form-label">Key</label>
+                            <input type="text" class="form-control" id="key" placeholder="Название ключа" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="value" class="form-label">Value</label>
+                            <input type="text" class="form-control" id="value" placeholder="Значение ключа" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Добавить переменную</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6" id="add-variable-list-container">
+            <!-- Список переменных -->
+            <div class="card my-4">
+                <div class="card-header">
+                    <h5>Список переменных</h5>
+                </div>
+                <div class="card-body">
+                    <ul id="variables-list" class="list-group">
+                        <!-- Переменные будут добавлены здесь динамически -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal for Editing Variable -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editModalLabel">Редактировать</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-variable-form" autocomplete="off">
+                    <div class="mb-3">
+                        <label for="edit-key" class="form-label">Key</label>
+                        <input type="text" class="form-control" id="edit-key" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-value" class="form-label">Value</label>
+                        <input type="text" class="form-control" id="edit-value" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_BASE_URL = "/api";
+    const token = "my_difficult_bearer_key";
+    const headers_auth = {headers: {Authorization: `Bearer ${token}`}}
+
+    // Fetch and display all variables
+    async function fetchVariables() {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/variables/`, headers_auth);
+            let variables = response?.data;
+            const list = document.getElementById("variables-list");
+            list.innerHTML = "";
+
+            if (Array.isArray(variables)) {  // Проверяем, что данные пришли в виде массива
+                variables.sort((a, b) => a.key.localeCompare(b.key));
+                variables.forEach(variable => {
+                    const listItem = document.createElement("li");
+                    listItem.className = "list-group-item d-flex justify-content-between align-items-center";
+                    listItem.innerHTML = `
+                    <span>${variable.key}</span>
+                    <div>
+                        <button class="btn btn-sm btn-info me-2" onclick="editVariable('${variable.key}')">Редактировать</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteVariable('${variable.key}')">Удалить</button>
+                    </div>
+                `;
+                    list.appendChild(listItem);
+                    document.getElementById('add-variable-list-container').classList.remove('d-none')
+                });
+            }
+        } catch (error) {
+            document.getElementById('variables-list').innerText = 'Ошибка получения данных'
+            document.getElementById('add-variable-list-container').classList.add('d-none')
+            console.error("Error fetching variables:", error);
+        }
+    }
+
+    // Add a new variable
+    document.getElementById("add-variable-form").addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const key = document.getElementById("key").value;
+        const value = document.getElementById("value").value;
+
+        try {
+            await axios.post(`${API_BASE_URL}/variables/`, { key, value }, headers_auth);
+            fetchVariables();
+            e.target.reset();
+        } catch (error) {
+            console.error("Error adding variable:", error);
+        }
+    });
+
+    // Edit variable (populate modal)
+    async function editVariable(key) {
+        try {
+            const response = await axios.get(`${API_BASE_URL}/variables/${key}`, headers_auth);
+            const variable = response?.data;
+
+            // Проверка на пустые данные
+            if (!variable || !variable.key || !variable.value) {
+                throw new Error("Variable data is empty or invalid.");
+                alert("Variable data is empty or invalid.")
+            }
+
+            document.getElementById("edit-key").value = variable.key;
+            document.getElementById("edit-value").value = variable.value;
+
+            const editModal = new bootstrap.Modal(document.getElementById("editModal"));
+            editModal.show();
+        } catch (error) {
+            console.error("Error fetching variable for edit:", error);
+            alert("Error fetching variable for edit:"+ error)
+        }
+    }
+
+    // Save edited variable
+    document.getElementById("edit-variable-form").addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const key = document.getElementById("edit-key").value;
+        const value = document.getElementById("edit-value").value;
+
+        try {
+            await axios.put(`${API_BASE_URL}/variables/${key}`, { new_value: value }, headers_auth);
+            fetchVariables();
+
+            const editModal = bootstrap.Modal.getInstance(document.getElementById("editModal"));
+            editModal.hide();
+        } catch (error) {
+            console.error("Error updating variable:", error);
+        }
+    });
+
+    // Delete variable
+    async function deleteVariable(key) {
+        try {
+            await axios.delete(`${API_BASE_URL}/variables/${key}`, headers_auth);
+            fetchVariables();
+        } catch (error) {
+            console.error("Error deleting variable:", error);
+        }
+    }
+
+    // Fetch variables on page load
+    fetchVariables();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
