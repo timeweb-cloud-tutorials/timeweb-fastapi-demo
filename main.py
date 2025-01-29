@@ -1,3 +1,4 @@
+import uvicorn
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -23,6 +24,7 @@ class Variable(BaseModel):
 
 class UpdateVariable(BaseModel):
     new_value: str
+
 
 # Генерация ключа шифрования (генерируйте один раз и сохраните)
 ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", Fernet.generate_key())
@@ -52,6 +54,7 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
             detail="Неверные учетные данные",
             headers={"WWW-Authenticate": "Basic"},
         )
+
 
 # Модель данных
 class EnvironmentVariable(Base):
@@ -209,3 +212,8 @@ def delete_variable(key: str, db: Session = Depends(get_db)):
     db.delete(variable)
     db.commit()
     return {"message": "Переменная удалена", "key": key}
+
+
+# For production (Timeweb apps)
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
