@@ -15,6 +15,11 @@
        Важно! Если вы измените token (на backend), переменные перестанут быть доступными, поскольку они зашифрованы
     </div>
 
+    <div id="ip-address-danger" class="alert alert-danger d-none" role="alert">
+       <p>Не достаточно прав для доступа к данным. Настройте переменную окружения `ALLOWED_IPS` на сервере (добавьте ваш текщий IP-адрес).</p>
+        <code id="ip-address-value"></code>
+    </div>
+
     <div class="row">
         <div class="col-md-6">
             <!-- Добавить переменную форму -->
@@ -84,6 +89,12 @@
     const token = "my_difficult_bearer_key";
     const headers_auth = {headers: {Authorization: `Bearer ${token}`}}
 
+    // Check if the user's IP address is allowed
+    function checkIpAddress(text) {
+        document.getElementById('ip-address-danger').classList.remove('d-none');
+        document.getElementById('ip-address-value').innerText = text;
+    }
+
     // Fetch and display all variables
     async function fetchVariables() {
         try {
@@ -111,6 +122,14 @@
         } catch (error) {
             document.getElementById('variables-list').innerText = 'Ошибка получения данных'
             document.getElementById('add-variable-list-container').classList.add('d-none')
+
+            if (error.request.status == 403) {
+                let msg = JSON.parse(error.request.responseText).detail ?? 'Unknown IP address';
+                checkIpAddress(msg);
+                document.getElementById('add-variable-form-container').classList.add('d-none')
+                return;
+            }
+
             console.error("Error fetching variables:", error);
         }
     }
