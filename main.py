@@ -66,7 +66,7 @@ class EnvironmentVariable(Base):
 
 
 # Настройки
-ALLOWED_IPS = ["127.0.0.1", "192.168.0.100", "::ffff:127.0.0.1"]  # Список разрешённых IP
+ALLOWED_IPS = ["127.0.0.1", "192.168.0.100", "::ffff:127.0.0.1", "172.17.0.1"]  # Список разрешённых IP
 VALID_TOKENS = ["my_difficult_bearer_key", "qwe"]  # Список допустимых Bearer токенов
 
 # Создаем таблицы
